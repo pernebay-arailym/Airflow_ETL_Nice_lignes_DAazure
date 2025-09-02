@@ -1,0 +1,16 @@
+# Python
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+*.pdb
+
+# Virtual environments
+.venv/
+venv/
+venv_airflow/
+
+# IDE / editor files
+.vscode/
+*.swp
+*.swo
