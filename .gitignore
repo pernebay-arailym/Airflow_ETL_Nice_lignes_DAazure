@@ -9,8 +9,12 @@ __pycache__/
 .venv/
 venv/
 venv_airflow/
+.venv_airflow/
 
 # IDE / editor files
 .vscode/
 *.swp
 *.swo
+
+logs/
+*.log
