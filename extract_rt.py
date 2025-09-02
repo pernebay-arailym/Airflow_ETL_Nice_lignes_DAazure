@@ -72,6 +72,6 @@ def extract_trip_updates():
     print(f" Saved {len(df)} trip updates to data/rt_trips.csv")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # This is the entry point.
     extract_vehicle_positions()
     extract_trip_updates()
