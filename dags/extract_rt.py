@@ -85,6 +85,12 @@ def count_late_trips() -> int:
                 ) and stop_time_update.arrival.HasField("delay"):
                     if stop_time_update.arrival.delay > 0:  # strictly positive = late
                         late_count += 1
+                # Check departure delay
+                if stop_time_update.HasField(
+                    "departure"
+                ) and stop_time_update.departure.HasField("delay"):
+                    if stop_time_update.departure.delay > 0:
+                        late_count += 1
 
     return late_count
 
