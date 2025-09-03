@@ -70,6 +70,26 @@ def extract_trip_updates():
     print(f" Saved {len(df)} trip updates to data/rt_trips.csv")
 
 
+def count_late_trips() -> int:
+
+    feed = gtfs_realtime_pb2.FeedMessage()
+    response = requests.get(URL_TRIPUP)
+    feed.ParseFromString(response.content)
+
+    late_count = 0
+    for entity in feed.entity:
+        if entity.HasField("trip_update"):
+            for stop_time_update in entity.trip_update.stop_time_update:
+                if stop_time_update.HasField(
+                    "arrival"
+                ) and stop_time_update.arrival.HasField("delay"):
+                    if stop_time_update.arrival.delay > 0:  # strictly positive = late
+                        late_count += 1
+
+    return late_count
+
+
 if __name__ == "__main__":  # This is the entry point.
     extract_vehicle_positions()
     extract_trip_updates()
+    late_trips = count_late_trips()
