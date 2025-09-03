@@ -1,7 +1,7 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
-import sys
+import sys  # to manipulate the Python path
 from pathlib import Path
 
 # Add project root to sys.path so we can import extract_rt
@@ -9,12 +9,18 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.append(str(PROJECT_ROOT))
 
 # Import your extraction functions
-from dags.extract_rt import extract_vehicle_positions, extract_trip_updates
+from dags.extract_rt import (
+    extract_vehicle_positions,
+    extract_trip_updates,
+    count_late_trips,
+)
 
 # Default arguments for DAG
 default_args = {
     "owner": "airflow",
     "depends_on_past": False,
+    "email_on_failure": False,
+    "email_on_retry": False,
     "retries": 1,
     "retry_delay": timedelta(minutes=5),
 }
@@ -42,5 +48,10 @@ with DAG(
         python_callable=extract_trip_updates,
     )
 
+    late_count_task = PythonOperator(
+        task_id="count_late_trips",
+        python_callable=count_late_trips,
+    )
+
     # Define task order
-    extract_vehicle_task >> extract_tripupdates_task
+    [extract_vehicle_task, extract_tripupdates_task] >> late_count_task
