@@ -3,6 +3,7 @@ from google.transit import gtfs_realtime_pb2
 import pandas as pd
 from datetime import datetime
 from pathlib import Path
+from collections import Counter
 
 # Répertoires
 DATA_DIR = Path(__file__).parent / "data"  # /opt/airflow/dags/data
@@ -95,7 +96,40 @@ def count_late_trips() -> int:
     return late_count
 
 
+def top_busiest_stops(gtfs_url=URL_TRIPUP, top_n=5):
+    # Count how many times each stop_id appears in trip updates,
+    # return the top N busiest stops.
+
+    feed = gtfs_realtime_pb2.FeedMessage()
+    response = requests.get(gtfs_url)
+    feed.ParseFromString(response.content)
+
+    stop_ids = []
+    for entity in feed.entity:
+        if entity.HasField("trip_update"):
+            for stop in entity.trip_update.stop_time_update:
+                stop_ids.append(stop.stop_id)
+
+    if not stop_ids:
+        print("No stops found in this snapshot.")
+        return []
+
+    counter = Counter(stop_ids)
+    top_stops = counter.most_common(top_n)
+
+    # Turn into DataFrame for possible export
+    df = pd.DataFrame(top_stops, columns=["stop_id", "count"])
+    df.to_csv("data/top_stops.csv", index=False)
+
+    print(f"Top {top_n} busiest stops:")
+    for stop, count in top_stops:
+        print(f"  {stop}: {count} updates")
+
+    return top_stops
+
+
 if __name__ == "__main__":  # This is the entry point.
     extract_vehicle_positions()
     extract_trip_updates()
     late_trips = count_late_trips()
+    top_busiest_stops()
