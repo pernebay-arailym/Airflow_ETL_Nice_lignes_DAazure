@@ -13,6 +13,7 @@ from dags.extract_rt import (
     extract_vehicle_positions,
     extract_trip_updates,
     count_late_trips,
+    top_busiest_stops,
 )
 
 # Default arguments for DAG
@@ -53,5 +54,12 @@ with DAG(
         python_callable=count_late_trips,
     )
 
+    top_stops_task = PythonOperator(
+        task_id="top_busiest_stops",
+        python_callable=top_busiest_stops,
+    )
+
     # Define task order
-    [extract_vehicle_task, extract_tripupdates_task] >> late_count_task
+    extract_vehicle_task
+    extract_tripupdates_task >> late_count_task
+    extract_tripupdates_task >> top_stops_task
