@@ -16,6 +16,15 @@ from dags.extract_rt import (
     top_busiest_stops,
 )
 
+from transform_duckdb import (
+    init_db,
+    load_static_gtfs,
+    load_rt_snapshots,
+    build_core_marts,
+    export_for_powerbi,
+    cleanup_old_data,
+)
+
 # Default arguments for DAG
 default_args = {
     "owner": "airflow",
