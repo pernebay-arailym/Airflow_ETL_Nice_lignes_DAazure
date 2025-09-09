@@ -14,7 +14,8 @@ from pathlib import Path
 from datetime import datetime
 
 # Paths (inside Docker these should be /opt/airflow/...)
-DATA_DIR = Path("/opt/airflow/data")
+# DATA_DIR = Path("/opt/airflow/data")
+DATA_DIR = Path("/opt/airflow/data/gtfs_static")
 WAREHOUSE = Path("/opt/airflow/warehouse/lignesazur.duckdb")
 EXPORTS = Path("/opt/airflow/exports")
 
@@ -45,16 +46,16 @@ def load_static_gtfs():
     con.sql(
         f"""
     CREATE VIEW IF NOT EXISTS stg_routes AS
-    SELECT * FROM read_csv('{DATA_DIR/'routes.txt'}', AUTO_DETECT=TRUE);
+    SELECT * FROM read_csv('{DATA_DIR /'routes.txt'}', AUTO_DETECT=TRUE);
     
     CREATE VIEW IF NOT EXISTS stg_trips AS
-    SELECT * FROM read_csv('{DATA_DIR/'trips.txt'}', AUTO_DETECT=TRUE);
-    
+    SELECT * FROM read_csv('{DATA_DIR /'trips.txt'}', AUTO_DETECT=TRUE);
+
     CREATE VIEW IF NOT EXISTS stg_stops AS
-    SELECT * FROM read_csv('{DATA_DIR/'stops.txt'}', AUTO_DETECT=TRUE);
-    
+    SELECT * FROM read_csv('{DATA_DIR /'stops.txt'}', AUTO_DETECT=TRUE);
+
     CREATE VIEW IF NOT EXISTS stg_stop_times AS
-    SELECT * FROM read_csv('{DATA_DIR/'stop_times.txt'}', AUTO_DETECT=TRUE);
+    SELECT * FROM read_csv('{DATA_DIR /'stop_times.txt'}', AUTO_DETECT=TRUE);
     """
     )
     con.close()
@@ -137,7 +138,7 @@ def build_core_marts():
     # Fact table: stop events with delays
     con.sql(
         """
-    CREATE TABLE IF NOT EXISTS fact_stop_events AS
+    CREATE OR REPLACE TABLE fact_stop_events AS
     SELECT
         r.route_id,
         t.trip_id,
@@ -147,13 +148,13 @@ def build_core_marts():
         e.event_ts,
         date_trunc('day', e.event_ts) AS event_date,
         extract(hour from e.event_ts) AS event_hour,
-        strftime(e.event_ts, '%w')::INT AS dow
+        CAST(strftime(e.event_ts, '%w') AS INTEGER) AS dow
     FROM rt_trips e
     JOIN stg_trips t ON t.trip_id = e.trip_id
     JOIN stg_routes r ON r.route_id = e.route_id
     WHERE e.stop_id IS NOT NULL
       AND COALESCE(e.arrival_delay, e.departure_delay) IS NOT NULL
-      AND ABS(COALESCE(e.arrival_delay, e.departure_delay)) < 36000; -- cap 10h
+      AND ABS(COALESCE(e.arrival_delay, e.departure_delay)) < 36000;
     """
     )
 
@@ -216,7 +217,7 @@ def export_for_powerbi():
         f"""
     COPY (
       SELECT * FROM rt_vehicle
-      WHERE ts > NOW() - INTERVAL 30 MINUTE
+      WHERE timestamp > NOW() - INTERVAL '30 minutes'
     ) TO '{EXPORTS/f'vehicles_latest_{ts}.parquet'}' (FORMAT 'parquet');
     """
     )
@@ -225,9 +226,26 @@ def export_for_powerbi():
 
 def cleanup_old_data(days: int = 7):
     """
-    Optional: delete RT records older than X days (keeps DB small).
+    Delete old records from DuckDB tables if they exist.
     """
     con = _con()
+
+    # Register or create persistent tables
+    con.sql(
+        """
+        CREATE TABLE IF NOT EXISTS rt_trips AS
+        SELECT * FROM read_csv_auto('dags/data/rt_trips.csv');
+    """
+    )
+    con.sql(
+        """
+        CREATE TABLE IF NOT EXISTS rt_vehicle AS
+        SELECT * FROM read_csv_auto('dags/data/rt_vehicle.csv');
+    """
+    )
+
+    # Now cleanup
     con.sql(f"DELETE FROM rt_trips WHERE event_ts < NOW() - INTERVAL {days} DAY;")
-    con.sql(f"DELETE FROM rt_vehicle WHERE ts < NOW() - INTERVAL {days} DAY;")
+    con.sql(f"DELETE FROM rt_vehicle WHERE timestamp < NOW() - INTERVAL {days} DAY;")
+
     con.close()
