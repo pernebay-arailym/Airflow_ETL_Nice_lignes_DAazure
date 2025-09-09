@@ -68,6 +68,13 @@ with DAG(
         python_callable=top_busiest_stops,
     )
 
+    cleanup_task = PythonOperator(
+        task_id="cleanup_old_data",
+        python_callable=cleanup_old_data,
+        op_kwargs={"days": 7},  # keep last 7 days
+        dag=dag,
+    )
+
     # Define task order
     extract_vehicle_task
     extract_tripupdates_task >> late_count_task
