@@ -24,8 +24,6 @@ It enables monitoring of public transport in **real-time**: vehicle positions, t
 
 ---
 
----
-
 ## ⚙️ Tech Stack  
 
 | Tool          | Purpose                          |
@@ -77,7 +75,6 @@ Final dashboard includes:
 ---
 
 ## 👩‍💻 Author
-
 #### Arailym PERNEBAY
 - 📅 Duration: 2 weeks
 - 🏫 Simplon Data Engineering Bootcamp
